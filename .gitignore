@@ -43,6 +43,7 @@ INICIAR_SISTEMA.bat
 PARAR_SISTEMA.bat
 INSTALAR_DEPENDENCIAS.bat
 backend/hash.txt
+CONTEXTO_SESSAO.md
 
 # Deploy
 deploy-netlify/
