@@ -3,7 +3,8 @@ const OperadorModel = require('../models/operador.model');
 const { pool } = require('../config/database');
 require('dotenv').config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sanem_secret_key_2024';
+// FIX: Usando chave fixa para garantir consistência entre login e middleware
+const JWT_SECRET = 'sanem_sistema_seguro_2024_key_fixa_v2';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 class AuthController {
@@ -76,7 +77,7 @@ class AuthController {
   static async verify(req, res) {
     try {
       const operador = await OperadorModel.findById(req.userId);
-      
+
       if (!operador) {
         return res.status(401).json({ error: 'Usuário não encontrado' });
       }

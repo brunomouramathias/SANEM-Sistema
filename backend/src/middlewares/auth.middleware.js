@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sanem_secret_key_2024';
+// FIX: Usando chave fixa para garantir consistência
+const JWT_SECRET = 'sanem_sistema_seguro_2024_key_fixa_v2';
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;

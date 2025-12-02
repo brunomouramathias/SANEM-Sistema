@@ -60,6 +60,15 @@ export function AppProvider({ children }) {
     loadData()
   }, [])
 
+  // Verificar token ao iniciar
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Opcional: decodificar token para ver se é antigo (pela data de expiração)
+      // Mas vamos confiar no loadData para validar
+    }
+  }, []);
+
   // Carregar dados (tenta API, se falhar usa fallback)
   const loadData = async () => {
     try {
