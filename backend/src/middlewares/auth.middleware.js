@@ -28,7 +28,10 @@ function authMiddleware(req, res, next) {
     req.userEmail = decoded.email;
     return next();
   } catch (error) {
-    return res.status(401).json({ error: 'Token inválido' });
+    console.error('Erro de Autenticação:', error.message);
+    console.error('Token recebido (inicio):', token.substring(0, 10) + '...');
+    console.error('Segredo usado (inicio):', JWT_SECRET.substring(0, 3) + '...');
+    return res.status(401).json({ error: 'Token inválido', details: error.message });
   }
 }
 

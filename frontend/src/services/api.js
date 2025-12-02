@@ -12,6 +12,11 @@ async function request(endpoint, options = {}) {
     },
   };
 
+  if (token) {
+    // Debug token (remover em produção)
+    console.log('Enviando token:', token.substring(0, 10) + '...');
+  }
+
   const response = await fetch(`${API_URL}${endpoint}`, config);
 
   if (!response.ok) {
