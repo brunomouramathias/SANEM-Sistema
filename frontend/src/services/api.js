@@ -1,6 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-// Helper para fazer requisições
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
 
@@ -16,6 +15,13 @@ async function request(endpoint, options = {}) {
   const response = await fetch(`${API_URL}${endpoint}`, config);
 
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+
     const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
     throw new Error(error.error || 'Erro na requisição');
   }
