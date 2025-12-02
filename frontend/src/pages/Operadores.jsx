@@ -35,7 +35,9 @@ export function Operadores() {
             setOperadores(data)
         } catch (error) {
             console.error('Erro ao carregar operadores:', error)
-            alert('Erro ao carregar operadores')
+            if (!error.message?.includes('Sessão expirada')) {
+                alert('Erro ao carregar operadores')
+            }
         } finally {
             setLoading(false)
         }
