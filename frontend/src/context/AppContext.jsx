@@ -89,6 +89,13 @@ export function AppProvider({ children }) {
       setDistribuicoes(doacoes.map(d => ({ ...d, data: new Date(d.data) })))
       setUseAPI(true)
     } catch (error) {
+      // Se for erro de autenticação, não usar fallback e deixar redirecionar
+      if (error.message?.includes('Sessão expirada') || error.message?.includes('Token')) {
+        console.error('Sessão expirada, redirecionando...')
+        setUseAPI(false)
+        return
+      }
+
       console.log('API indisponível, usando dados locais')
       setUseAPI(false)
       // Carregar do localStorage ou usar fallback
