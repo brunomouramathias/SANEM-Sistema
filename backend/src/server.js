@@ -17,8 +17,20 @@ const relatorioRoutes = require('./routes/relatorio.routes');
 const app = express();
 
 // Middlewares
-app.use(cors());
+// Middlewares
+app.use(cors({
+  origin: '*', // Em produção, restrinja para o domínio do frontend
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 app.use(express.json());
+
+// Log de requisições para debug
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 // Rotas
 app.use('/api/auth', authRoutes);
@@ -46,7 +58,7 @@ const PORT = process.env.PORT || 3001;
 // Iniciar servidor
 async function startServer() {
   await testConnection();
-  
+
   app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log(`API disponível em http://localhost:${PORT}/api`);
