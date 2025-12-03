@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// URL dinâmica: usa o mesmo IP de onde o frontend foi carregado
+const hostname = window.location.hostname;
+const API_URL = import.meta.env.VITE_API_URL || `http://${hostname}:3001/api`;
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
