@@ -14,12 +14,18 @@ export function Dashboard() {
 
   // Dados para o gráfico
   const chartData = [
-    { mes: 'Jan', distribuicoes: 8 },
-    { mes: 'Fev', distribuicoes: 12 },
-    { mes: 'Mar', distribuicoes: 15 },
-    { mes: 'Abr', distribuicoes: 10 },
-    { mes: 'Mai', distribuicoes: 18 },
-    { mes: 'Jun', distribuicoes: 14 },
+    { mes: 'Jan', distribuicoes: 0 },
+    { mes: 'Fev', distribuicoes: 0 },
+    { mes: 'Mar', distribuicoes: 0 },
+    { mes: 'Abr', distribuicoes: 0 },
+    { mes: 'Mai', distribuicoes: 0 },
+    { mes: 'Jun', distribuicoes: 0 },
+    { mes: 'Jul', distribuicoes: 0 },
+    { mes: 'Ago', distribuicoes: 0 },
+    { mes: 'Set', distribuicoes: 0 },
+    { mes: 'Out', distribuicoes: 0 },
+    { mes: 'Nov', distribuicoes: distribuicoes.length },
+
   ]
 
   const stats = [
@@ -49,7 +55,7 @@ export function Dashboard() {
     },
     {
       title: 'Taxa de Crescimento',
-      value: '+23%',
+      value: '+100%',
       subtitle: 'Em relação ao mês anterior',
       icon: TrendingUp,
       color: 'text-orange-600',

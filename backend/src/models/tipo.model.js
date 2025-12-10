@@ -21,6 +21,34 @@ class TipoModel {
     };
   }
 
+  // Buscar por descrição (nome)
+  static async findByDescricao(descricao) {
+    const [rows] = await pool.query(
+      'SELECT * FROM Tipo WHERE LOWER(TRIM(TP_Descricao)) = LOWER(TRIM(?))',
+      [descricao]
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    return {
+      id: row.TP_IDTipo,
+      descricao: row.TP_Descricao
+    };
+  }
+
+  // Verificar se já existe tipo com essa descrição (excluindo um ID específico)
+  static async existsByDescricao(descricao, excludeId = null) {
+    let query = 'SELECT COUNT(*) as count FROM Tipo WHERE LOWER(TRIM(TP_Descricao)) = LOWER(TRIM(?))';
+    const params = [descricao];
+    
+    if (excludeId) {
+      query += ' AND TP_IDTipo != ?';
+      params.push(excludeId);
+    }
+    
+    const [rows] = await pool.query(query, params);
+    return rows[0].count > 0;
+  }
+
   // Criar novo tipo
   static async create(data) {
     const { descricao } = data;

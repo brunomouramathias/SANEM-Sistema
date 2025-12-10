@@ -35,6 +35,24 @@ class EstoqueModel {
     };
   }
 
+  // Buscar por tipoId
+  static async findByTipoId(tipoId) {
+    const [rows] = await pool.query(`
+      SELECT e.ES_Estoque, e.ES_Quantidade, e.Tipo_TP_IDTipo, t.TP_Descricao
+      FROM Estoque e
+      LEFT JOIN Tipo t ON e.Tipo_TP_IDTipo = t.TP_IDTipo
+      WHERE e.Tipo_TP_IDTipo = ?
+    `, [tipoId]);
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    return {
+      id: row.ES_Estoque,
+      quantidade: row.ES_Quantidade,
+      tipoId: row.Tipo_TP_IDTipo,
+      tipoDescricao: row.TP_Descricao
+    };
+  }
+
   // Criar novo item no estoque
   static async create(data) {
     const { quantidade, tipoId } = data;

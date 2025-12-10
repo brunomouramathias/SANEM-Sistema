@@ -38,6 +38,15 @@ class EstoqueController {
         return res.status(400).json({ error: 'Tipo é obrigatório' });
       }
 
+      // Verificar se já existe item no estoque para este tipo
+      const existente = await EstoqueModel.findByTipoId(tipoId);
+      if (existente) {
+        return res.status(409).json({ 
+          error: 'Já existe um item no estoque para este tipo de produto',
+          field: 'tipoId'
+        });
+      }
+
       const item = await EstoqueModel.create({ quantidade: quantidade || 0, tipoId });
       return res.status(201).json(item);
     } catch (error) {

@@ -75,17 +75,25 @@ export function AppProvider({ children }) {
       const token = localStorage.getItem('token')
       if (!token) {
         // Sem token, usar fallback
+        console.log('⚠️ Sem token - usando dados de fallback')
         setProdutos(fallbackData.produtos)
         setBeneficiarios(fallbackData.beneficiarios)
         setDistribuicoes(fallbackData.distribuicoes)
+        setUseAPI(false)
         return
       }
 
-      const [estoque, benef, doacoes] = await Promise.all([
+      console.log('📡 Carregando dados da API...')
+      const [estoque, benef, doacoesEnviadas] = await Promise.all([
         apiRequest('/estoque'),
         apiRequest('/beneficiarios'),
         apiRequest('/doacoes/enviadas')
       ])
+
+      console.log('✅ Dados carregados da API com sucesso')
+      console.log('  - Produtos:', estoque.length)
+      console.log('  - Beneficiários:', benef.length)
+      console.log('  - Doações Enviadas:', doacoesEnviadas.length)
 
       setProdutos(estoque.map(item => ({
         id: item.id,
@@ -95,17 +103,45 @@ export function AppProvider({ children }) {
         tipoId: item.tipoId
       })))
       setBeneficiarios(benef)
-      setDistribuicoes(doacoes.map(d => ({ ...d, data: new Date(d.data) })))
+      
+      // Agrupar doações enviadas por beneficiário e data para formar distribuições
+      const distribuicoesAgrupadas = {}
+      doacoesEnviadas.forEach(doacao => {
+        // Usar beneficiarioId + data (sem hora) como chave para agrupar
+        const dataKey = new Date(doacao.data).toISOString().split('T')[0]
+        const key = `${doacao.beneficiarioId}_${dataKey}`
+        
+        if (!distribuicoesAgrupadas[key]) {
+          distribuicoesAgrupadas[key] = {
+            id: doacao.id,
+            beneficiarioId: doacao.beneficiarioId,
+            beneficiarioNome: doacao.beneficiarioNome,
+            data: new Date(doacao.data),
+            responsavel: doacao.operadorNome || 'Sistema',
+            produtos: []
+          }
+        }
+        
+        // IMPORTANTE: Converter quantidade para número para evitar concatenação
+        distribuicoesAgrupadas[key].produtos.push({
+          nome: doacao.tipoDescricao,
+          quantidade: parseInt(doacao.quantidade) || 0
+        })
+      })
+      
+      setDistribuicoes(Object.values(distribuicoesAgrupadas))
       setUseAPI(true)
+      console.log('🔗 Modo: CONECTADO à API')
+      console.log('  - Distribuições agrupadas:', Object.values(distribuicoesAgrupadas).length)
     } catch (error) {
       // Se for erro de autenticação, não usar fallback e deixar redirecionar
       if (error.message?.includes('Sessão expirada') || error.message?.includes('Token')) {
-        console.error('Sessão expirada, redirecionando...')
+        console.error('❌ Sessão expirada, redirecionando...')
         setUseAPI(false)
         return
       }
 
-      console.log('API indisponível, usando dados locais')
+      console.log('⚠️ API indisponível, usando dados locais')
       setUseAPI(false)
       // Carregar do localStorage ou usar fallback
       const storedProdutos = localStorage.getItem('produtos')
@@ -115,6 +151,7 @@ export function AppProvider({ children }) {
       setProdutos(storedProdutos ? JSON.parse(storedProdutos) : fallbackData.produtos)
       setBeneficiarios(storedBenef ? JSON.parse(storedBenef) : fallbackData.beneficiarios)
       setDistribuicoes(storedDist ? JSON.parse(storedDist).map(d => ({ ...d, data: new Date(d.data) })) : [])
+      console.log('💾 Modo: OFFLINE (dados locais)')
     }
   }
 
@@ -177,40 +214,155 @@ export function AppProvider({ children }) {
 
   // Produtos
   const addProduto = async (produto) => {
+    console.log('➕ Adicionando produto:', produto.nome, '| Quantidade:', produto.estoque, '| useAPI:', useAPI)
+    
     if (useAPI) {
       try {
-        await apiRequest('/estoque', { method: 'POST', body: JSON.stringify({ quantidade: produto.estoque, tipoId: 1 }) })
+        // 1. Primeiro criar o tipo (produto)
+        console.log('📡 Criando tipo/produto:', produto.nome)
+        const novoTipo = await apiRequest('/tipos', { 
+          method: 'POST', 
+          body: JSON.stringify({ descricao: produto.nome })
+        })
+        console.log('✅ Tipo criado com ID:', novoTipo.id)
+
+        // 2. Criar o item no estoque com quantidade 0
+        console.log('📡 Criando item no estoque (quantidade inicial: 0)')
+        const novoEstoque = await apiRequest('/estoque', { 
+          method: 'POST', 
+          body: JSON.stringify({ 
+            quantidade: 0, 
+            tipoId: novoTipo.id 
+          })
+        })
+        console.log('✅ Estoque criado com ID:', novoEstoque.id)
+
+        // 3. Registrar doação recebida (que irá incrementar o estoque)
+        if (produto.estoque > 0) {
+          console.log('📡 Registrando doação recebida de', produto.estoque, 'unidades')
+          await apiRequest('/doacoes/recebidas', {
+            method: 'POST',
+            body: JSON.stringify({
+              quantidade: produto.estoque,
+              tipoId: novoTipo.id,
+              estoqueId: novoEstoque.id
+            })
+          })
+          console.log('✅ Doação recebida registrada')
+        }
+        
+        console.log('✅ Produto adicionado com sucesso no sistema!')
         await loadData()
-      } catch { /* fallback */ }
+        return
+      } catch (error) {
+        console.error('❌ Erro ao adicionar produto:', error)
+        
+        // Se for erro de duplicata, mostrar mensagem específica
+        if (error.message.includes('Já existe um produto')) {
+          alert('⚠️ Já existe um produto com este nome!\nEscolha um nome diferente.')
+          throw error // Não adiciona localmente
+        }
+        
+        alert('Erro ao adicionar produto: ' + error.message)
+        throw error
+      }
     }
+    
+    // Fallback: modo offline - verificar duplicatas localmente
+    const nomeLower = produto.nome.toLowerCase().trim()
+    const jaExiste = produtos.some(p => p.nome.toLowerCase().trim() === nomeLower)
+    
+    if (jaExiste) {
+      alert('⚠️ Já existe um produto com este nome!\nEscolha um nome diferente.')
+      throw new Error('Produto duplicado')
+    }
+    
     const newProduto = { ...produto, id: Math.max(...produtos.map(p => p.id), 0) + 1 }
     setProdutos([...produtos, newProduto])
   }
 
   const updateProduto = async (id, produtoAtualizado) => {
+    console.log('✏️ Atualizando produto ID:', id, '| useAPI:', useAPI)
+    
     if (useAPI) {
       try {
-        // Chamar API para atualizar no backend
+        const produtoAtual = produtos.find(p => p.id === id)
+        if (!produtoAtual) {
+          throw new Error('Produto não encontrado')
+        }
+
+        // Se o nome mudou, atualizar o tipo também
+        if (produtoAtualizado.nome && produtoAtualizado.nome !== produtoAtual.nome) {
+          console.log('📡 Atualizando nome do tipo:', produtoAtualizado.nome)
+          await apiRequest(`/tipos/${produtoAtual.tipoId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ descricao: produtoAtualizado.nome })
+          })
+        }
+
+        // Atualizar quantidade no estoque
+        console.log('📡 Atualizando quantidade no estoque')
         await apiRequest(`/estoque/${id}`, {
           method: 'PUT',
           body: JSON.stringify({
             quantidade: produtoAtualizado.estoque,
-            tipoId: produtos.find(p => p.id === id)?.tipoId || 1
+            tipoId: produtoAtual.tipoId
           })
         })
-        // Recarregar dados do servidor após atualização
+        
+        console.log('✅ Produto atualizado com sucesso')
         await loadData()
         return
       } catch (error) {
-        console.error('Erro ao atualizar produto na API:', error)
-        // Em caso de erro, continua com atualização local
+        console.error('❌ Erro ao atualizar produto na API:', error)
+        
+        // Se for erro de duplicata, mostrar mensagem específica
+        if (error.message.includes('Já existe um produto')) {
+          alert('⚠️ Já existe um produto com este nome!\nEscolha um nome diferente.')
+          throw error
+        }
+        
+        alert('Erro ao atualizar: ' + error.message + '\nAs alterações não foram salvas no banco de dados.')
+        throw error
       }
     }
-    // Fallback: atualizar apenas localmente
+    
+    // Fallback: modo offline - verificar duplicatas localmente
+    if (produtoAtualizado.nome) {
+      const nomeLower = produtoAtualizado.nome.toLowerCase().trim()
+      const jaExiste = produtos.some(p => 
+        p.id !== id && p.nome.toLowerCase().trim() === nomeLower
+      )
+      
+      if (jaExiste) {
+        alert('⚠️ Já existe um produto com este nome!\nEscolha um nome diferente.')
+        throw new Error('Produto duplicado')
+      }
+    }
+    
+    // Atualizar apenas localmente (somente se não está usando API)
+    console.log('💾 Atualizando apenas localmente (modo offline)')
     setProdutos(produtos.map(p => p.id === id ? { ...p, ...produtoAtualizado } : p))
   }
 
-  const deleteProduto = (id) => {
+  const deleteProduto = async (id) => {
+    console.log('🗑️ Deletando produto ID:', id, '| useAPI:', useAPI)
+    if (useAPI) {
+      try {
+        console.log('📡 Chamando API DELETE /estoque/' + id)
+        await apiRequest(`/estoque/${id}`, { method: 'DELETE' })
+        console.log('✅ Produto deletado com sucesso na API')
+        await loadData()
+        return
+      } catch (error) {
+        console.error('❌ Erro ao deletar produto na API:', error)
+        console.error('⚠️ ATENÇÃO: Não foi possível deletar no backend!')
+        alert('Erro ao deletar: ' + error.message + '\nO item não foi removido do banco de dados.')
+        return // NÃO deleta localmente se a API falhar
+      }
+    }
+    // Fallback: deletar apenas localmente (somente se não está usando API)
+    console.log('💾 Deletando apenas localmente (modo offline)')
     setProdutos(produtos.filter(p => p.id !== id))
   }
 
@@ -227,16 +379,92 @@ export function AppProvider({ children }) {
     setBeneficiarios([...beneficiarios, newBeneficiario])
   }
 
-  const updateBeneficiario = (id, beneficiarioAtualizado) => {
+  const updateBeneficiario = async (id, beneficiarioAtualizado) => {
+    console.log('✏️ Atualizando beneficiário ID:', id, '| useAPI:', useAPI)
+    if (useAPI) {
+      try {
+        console.log('📡 Chamando API PUT /beneficiarios/' + id)
+        await apiRequest(`/beneficiarios/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(beneficiarioAtualizado)
+        })
+        console.log('✅ Beneficiário atualizado com sucesso na API')
+        await loadData()
+        return
+      } catch (error) {
+        console.error('❌ Erro ao atualizar beneficiário na API:', error)
+        alert('Erro ao atualizar: ' + error.message + '\nAs alterações não foram salvas no banco de dados.')
+        return // NÃO atualiza localmente se a API falhar
+      }
+    }
+    // Fallback: atualizar apenas localmente (somente se não está usando API)
+    console.log('💾 Atualizando apenas localmente (modo offline)')
     setBeneficiarios(beneficiarios.map(b => b.id === id ? { ...b, ...beneficiarioAtualizado } : b))
   }
 
-  const deleteBeneficiario = (id) => {
+  const deleteBeneficiario = async (id) => {
+    console.log('🗑️ Deletando beneficiário ID:', id, '| useAPI:', useAPI)
+    if (useAPI) {
+      try {
+        console.log('📡 Chamando API DELETE /beneficiarios/' + id)
+        await apiRequest(`/beneficiarios/${id}`, { method: 'DELETE' })
+        console.log('✅ Beneficiário deletado com sucesso na API')
+        await loadData()
+        return
+      } catch (error) {
+        console.error('❌ Erro ao deletar beneficiário na API:', error)
+        console.error('⚠️ ATENÇÃO: Não foi possível deletar no backend!')
+        alert('Erro ao deletar: ' + error.message + '\nO item não foi removido do banco de dados.')
+        return // NÃO deleta localmente se a API falhar
+      }
+    }
+    // Fallback: deletar apenas localmente (somente se não está usando API)
+    console.log('💾 Deletando apenas localmente (modo offline)')
     setBeneficiarios(beneficiarios.filter(b => b.id !== id))
   }
 
   // Distribuição
-  const addDistribuicao = (distribuicao) => {
+  const addDistribuicao = async (distribuicao) => {
+    console.log('📦 Registrando distribuição para:', distribuicao.beneficiarioNome, '| useAPI:', useAPI)
+    console.log('   Produtos:', distribuicao.produtos.length)
+    
+    if (useAPI) {
+      try {
+        // Criar uma doação enviada para cada produto da distribuição
+        console.log('📡 Criando doações enviadas no backend...')
+        
+        for (const produto of distribuicao.produtos) {
+          const produtoEstoque = produtos.find(p => p.id === produto.id)
+          if (!produtoEstoque) {
+            throw new Error(`Produto ${produto.nome} não encontrado`)
+          }
+
+          console.log(`  ➡️ Registrando: ${produto.quantidade}x ${produto.nome}`)
+          
+          await apiRequest('/doacoes/enviadas', {
+            method: 'POST',
+            body: JSON.stringify({
+              quantidade: produto.quantidade,
+              beneficiarioId: distribuicao.beneficiarioId,
+              tipoId: produtoEstoque.tipoId,
+              estoqueId: produtoEstoque.id
+            })
+          })
+        }
+
+        console.log('✅ Distribuição registrada com sucesso!')
+        console.log('   Recarregando dados do servidor...')
+        await loadData()
+        return
+      } catch (error) {
+        console.error('❌ Erro ao registrar distribuição:', error)
+        alert('Erro ao registrar distribuição: ' + error.message + '\nA distribuição não foi salva no banco de dados.')
+        throw error
+      }
+    }
+
+    // Fallback: modo offline
+    console.log('💾 Registrando distribuição localmente (modo offline)')
     const newDistribuicao = {
       ...distribuicao,
       id: Math.max(...distribuicoes.map(d => d.id), 0) + 1,
@@ -244,7 +472,7 @@ export function AppProvider({ children }) {
       responsavel: user?.nome || 'Admin'
     }
 
-    // Atualizar estoque
+    // Atualizar estoque localmente
     distribuicao.produtos.forEach(produto => {
       const produtoEstoque = produtos.find(p => p.id === produto.id)
       if (produtoEstoque) {

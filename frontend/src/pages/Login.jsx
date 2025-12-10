@@ -72,10 +72,10 @@ export function Login() {
               Entrar
             </Button>
 
-            <div className="text-sm text-center text-muted-foreground mt-4">
+            {/* <div className="text-sm text-center text-muted-foreground mt-4">
               <p>Credenciais de teste:</p>
               <p className="font-mono">admin@sanem.org / admin123</p>
-            </div>
+            </div> */}
           </form>
         </CardContent>
       </Card>

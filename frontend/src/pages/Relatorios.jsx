@@ -8,8 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useApp } from '@/context/AppContext'
 import { FileText, Download, Filter, Package, Users, Truck } from 'lucide-react'
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+// import jsPDF from 'jspdf'
+// import 'jspdf-autotable'
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 export function Relatorios() {
   const { distribuicoes, beneficiarios, produtos } = useApp()
@@ -59,11 +62,19 @@ export function Relatorios() {
         if (!produtosDistribuidos[prod.nome]) {
           produtosDistribuidos[prod.nome] = 0
         }
-        produtosDistribuidos[prod.nome] += prod.quantidade
+        // IMPORTANTE: Converter para número para evitar concatenação de strings
+        const quantidade = parseInt(prod.quantidade) || 0
+        produtosDistribuidos[prod.nome] += quantidade
       })
     })
     
     const totalProdutos = Object.values(produtosDistribuidos).reduce((a, b) => a + b, 0)
+
+    console.log('📊 Estatísticas calculadas:')
+    console.log('  - Total de distribuições:', totalDistribuicoes)
+    console.log('  - Beneficiários únicos:', beneficiariosUnicos)
+    console.log('  - Total de produtos:', totalProdutos)
+    console.log('  - Produtos distribuídos:', produtosDistribuidos)
 
     return {
       totalDistribuicoes,
@@ -142,13 +153,14 @@ export function Relatorios() {
       dist.responsavel
     ])
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [['Data', 'Beneficiário', 'Produtos', 'Responsável']],
       body: tableData,
       styles: { fontSize: 8 },
       headStyles: { fillColor: [59, 130, 246] }
-    })
+    });
+    
 
     doc.save(`relatorio_sanem_${new Date().toISOString().split('T')[0]}.pdf`)
   }

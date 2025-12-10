@@ -34,11 +34,20 @@ class TipoController {
     try {
       const { descricao } = req.body;
 
-      if (!descricao) {
+      if (!descricao || !descricao.trim()) {
         return res.status(400).json({ error: 'Descrição é obrigatória' });
       }
 
-      const tipo = await TipoModel.create({ descricao });
+      // Verificar se já existe um tipo com essa descrição
+      const exists = await TipoModel.existsByDescricao(descricao);
+      if (exists) {
+        return res.status(409).json({ 
+          error: 'Já existe um produto com este nome',
+          field: 'nome'
+        });
+      }
+
+      const tipo = await TipoModel.create({ descricao: descricao.trim() });
       return res.status(201).json(tipo);
     } catch (error) {
       console.error('Erro ao criar tipo:', error);
@@ -52,12 +61,25 @@ class TipoController {
       const { id } = req.params;
       const { descricao } = req.body;
 
+      if (!descricao || !descricao.trim()) {
+        return res.status(400).json({ error: 'Descrição é obrigatória' });
+      }
+
       const existente = await TipoModel.findById(id);
       if (!existente) {
         return res.status(404).json({ error: 'Tipo não encontrado' });
       }
 
-      const tipo = await TipoModel.update(id, { descricao });
+      // Verificar se já existe outro tipo com essa descrição
+      const exists = await TipoModel.existsByDescricao(descricao, id);
+      if (exists) {
+        return res.status(409).json({ 
+          error: 'Já existe um produto com este nome',
+          field: 'nome'
+        });
+      }
+
+      const tipo = await TipoModel.update(id, { descricao: descricao.trim() });
       return res.json(tipo);
     } catch (error) {
       console.error('Erro ao atualizar tipo:', error);

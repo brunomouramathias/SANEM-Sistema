@@ -9,7 +9,7 @@ import { Distribuicao } from './pages/Distribuicao'
 import { Historico } from './pages/Historico'
 import { Relatorios } from './pages/Relatorios'
 
-// Componente de rota protegida
+// Componente de rota protegida (requer login)
 function ProtectedRoute({ children }) {
   const { user } = useApp()
 
@@ -20,12 +20,36 @@ function ProtectedRoute({ children }) {
   return children
 }
 
+// Componente de rota protegida APENAS para Admin
+function AdminRoute({ children }) {
+  const { user } = useApp()
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  // Tipo 1 = Admin, Tipo 0 = Operador
+  const isAdmin = user.tipo === 1 || user.tipo === '1'
+  
+  if (!isAdmin) {
+    console.log('⚠️ Acesso negado: Operador tentou acessar rota de Admin')
+    alert('⚠️ Acesso Restrito!\n\nVocê não tem permissão para acessar esta página.')
+    return <Navigate to="/produtos" replace />
+  }
+
+  return children
+}
+
 // Componente de rota pública (redireciona se já estiver logado)
 function PublicRoute({ children }) {
   const { user } = useApp()
 
   if (user) {
-    return <Navigate to="/dashboard" replace />
+    // Redirecionar baseado no tipo de usuário
+    // Tipo 1 = Admin, Tipo 0 = Operador
+    const isAdmin = user.tipo === 1 || user.tipo === '1'
+    const redirectTo = isAdmin ? '/dashboard' : '/produtos'
+    return <Navigate to={redirectTo} replace />
   }
 
   return children
@@ -42,14 +66,41 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      {/* Rotas APENAS para Admin */}
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <Dashboard />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
+      <Route
+        path="/operadores"
+        element={
+          <AdminRoute>
+            <Operadores />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/historico"
+        element={
+          <AdminRoute>
+            <Historico />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/relatorios"
+        element={
+          <AdminRoute>
+            <Relatorios />
+          </AdminRoute>
+        }
+      />
+
+      {/* Rotas para Admin E Operador */}
       <Route
         path="/produtos"
         element={
@@ -67,34 +118,10 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/operadores"
-        element={
-          <ProtectedRoute>
-            <Operadores />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/distribuicao"
         element={
           <ProtectedRoute>
             <Distribuicao />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/historico"
-        element={
-          <ProtectedRoute>
-            <Historico />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/relatorios"
-        element={
-          <ProtectedRoute>
-            <Relatorios />
           </ProtectedRoute>
         }
       />
