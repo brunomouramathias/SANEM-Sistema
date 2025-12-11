@@ -13,7 +13,6 @@ O Sistema SANEM foi desenvolvido como parte da disciplina de Oficina de Computa�
 - Express.js
 - MySQL
 - JWT (JSON Web Tokens)
-- bcryptjs
 
 ### Frontend
 - React 18
@@ -137,9 +136,12 @@ A aplicação estará disponível em `http://localhost:5173`
 | POST | /api/doacoes/enviadas | Registrar distribuição |
 | GET | /api/relatorios/dashboard | Estatísticas gerais |
 
-## Autor
+## Autores
 
 - Bruno Moura Mathias Fernandes Simão
+- Gabriel Vieira Moreno
+- João Pedro Domingues
+- Natan Pereira Santos
 
 ## Licença
 
